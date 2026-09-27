@@ -685,7 +685,7 @@ class LLMClient {
     reasoningEffort;
     reasoningFallbackActive = false;
     reasoningFallbackReason;
-    constructor(baseUrl, apiKey, model, maxOutputTokens, timeoutMs = config_1.DEFAULT_LLM_TIMEOUT_MS, maxAttempts = config_1.DEFAULT_LLM_COMPLETION_ATTEMPTS, temperature = config_1.DEFAULT_LLM_TEMPERATURE, onProgress, reasoningEffort) {
+    constructor(baseUrl, apiKey, model, maxOutputTokens, timeoutMs = config_1.DEFAULT_LLM_TIMEOUT_MS, maxAttempts = config_1.DEFAULT_LLM_COMPLETION_ATTEMPTS, temperature = config_1.DEFAULT_LLM_TEMPERATURE, onProgress, reasoningEffort, customHeaders) {
         this.model = model;
         this.temperature = temperature;
         this.routerModel = (0, llm_retry_1.isOpenRouterRouterModel)(model);
@@ -704,7 +704,7 @@ class LLMClient {
             apiKey: apiKey || "ollama",
             maxRetries: 0,
             timeout: effectiveTimeoutMs,
-            defaultHeaders: customHeaders,
+            defaultHeaders: customHeaders || {},
         });
         if (this.routerModel) {
             core.info(`OpenRouter router model — ${config_1.DEFAULT_LLM_ROUTER_FIRST_CHUNK_MS / 1000}s first-chunk stall detect, ${effectiveTimeoutMs / 1000}s stream cap, provider fallbacks.`);
@@ -1370,7 +1370,7 @@ async function run() {
         const reviewInstructions = command === "review"
             ? await loadReviewInstructions(octokit, gitUtils, owner, repo, prNumber, inlineReviewInstructions, reviewInstructionsFile, baseRef)
             : "";
-        const llm = new llm_client_1.LLMClient(baseUrl, apiKey, model, maxOutputTokens, llmTimeoutMs, undefined, llmTemperature, async (detail) => {
+        const llm = new llm_client_1.LLMClient(baseUrl, apiKey, model, maxOutputTokens, llmTimeoutMs, undefined, llmTemperature, async (detail) => { /* progress */ }, undefined, customHeaders);
             await updateStatusComment(octokit, owner, repo, statusCommentId, buildProgressStatusBody(detail, statusCommand, statusModel));
         }, reasoningEffort);
         const useJsonMode = command === "review" && jsonResponseMode;
