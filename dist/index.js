@@ -844,6 +844,12 @@ class LLMClient {
         }
     }
     async dispatch(request) {
+        if (process.env.ROBIN_DEBUG_HEADERS === "true") {
+            // Diagnostic: which User-Agent actually goes on the wire decides whether
+            // some free tiers (OpenCode Zen) accept the request at all, and the SDK's
+            // own default UA silently wins/fails depending on merge order.
+            core.info(`[debug] outgoing headers: ${JSON.stringify(this.client.defaultHeaders({}))}`);
+        }
         return this.routerModel || this.forceStream
             ? await this.streamChatCompletion(request)
             : await this.blockingChatCompletion(request);
