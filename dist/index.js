@@ -63,44 +63,6 @@ exports.DEFAULT_LLM_ROUTER_COMPLETION_ATTEMPTS = 5;
 exports.DEFAULT_LLM_RETRY_DELAY_MS = 2000;
 exports.DEFAULT_LLM_ROUTER_RETRY_DELAY_MS = 3000;
 exports.DEFAULT_LLM_TEMPERATURE = 0.1; // near-deterministic reviews
-/**
- * Placeholder tool definitions injected when the `compat-tools` input is enabled.
- * Some OpenAI-compatible free tiers only admit requests carrying >= 2 tool
- * definitions. These are never invoked — the request also sets
- * `tool_choice: "none"` — they exist purely to pass that admission check.
- *
- * The schemas must declare at least one real property: a tool with
- * `properties: {}` is rejected by the same admission check (verified against
- * OpenCode Zen — empty-schema placeholders return 403, populated ones pass).
- */
-const COMPAT_PLACEHOLDER_TOOLS = [
-    {
-        type: "function",
-        function: {
-            name: "compat_placeholder_read",
-            description: "Placeholder tool required by the provider's free-tier admission check. Never called.",
-            parameters: {
-                type: "object",
-                properties: { path: { type: "string", description: "Unused placeholder argument." } },
-                required: ["path"],
-                additionalProperties: false,
-            },
-        },
-    },
-    {
-        type: "function",
-        function: {
-            name: "compat_placeholder_grep",
-            description: "Placeholder tool required by the provider's free-tier admission check. Never called.",
-            parameters: {
-                type: "object",
-                properties: { pattern: { type: "string", description: "Unused placeholder argument." } },
-                required: ["pattern"],
-                additionalProperties: false,
-            },
-        },
-    },
-];
 /** OpenAI-compatible upper bound; some models (e.g. Kimi) only accept 1. */
 exports.MAX_LLM_TEMPERATURE = 2;
 function parseLLMTimeout(input) {
@@ -712,6 +674,44 @@ const openai_1 = __nccwpck_require__(2583);
 const config_1 = __nccwpck_require__(4008);
 const llm_retry_1 = __nccwpck_require__(4069);
 const core = __importStar(__nccwpck_require__(7484));
+/**
+ * Placeholder tool definitions injected when the `compat-tools` input is enabled.
+ * Some OpenAI-compatible free tiers only admit requests carrying >= 2 tool
+ * definitions. These are never invoked — the request also sets
+ * `tool_choice: "none"` — they exist purely to pass that admission check.
+ *
+ * Must live in THIS module's scope, not the bundle top level: the dist is a
+ * bundle of separately-scoped modules, and a top-level const is invisible here
+ * (it throws `ReferenceError: ... is not defined` at request-build time).
+ */
+const COMPAT_PLACEHOLDER_TOOLS = [
+    {
+        type: "function",
+        function: {
+            name: "compat_placeholder_read",
+            description: "Placeholder tool required by the provider's free-tier admission check. Never called.",
+            parameters: {
+                type: "object",
+                properties: { path: { type: "string", description: "Unused placeholder argument." } },
+                required: ["path"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "compat_placeholder_grep",
+            description: "Placeholder tool required by the provider's free-tier admission check. Never called.",
+            parameters: {
+                type: "object",
+                properties: { pattern: { type: "string", description: "Unused placeholder argument." } },
+                required: ["pattern"],
+                additionalProperties: false,
+            },
+        },
+    },
+];
 class LLMClient {
     client;
     model;
