@@ -1274,6 +1274,7 @@ async function run() {
         if (customHeadersInput) {
             try {
                 customHeaders = JSON.parse(customHeadersInput);
+                core.info(`Custom headers applied: ${Object.keys(customHeaders).join(", ")}`);
             } catch (e) {
                 core.warning(`Invalid custom-headers JSON: ${e.message}`);
             }
