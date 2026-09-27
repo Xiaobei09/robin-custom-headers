@@ -1370,9 +1370,9 @@ async function run() {
         const reviewInstructions = command === "review"
             ? await loadReviewInstructions(octokit, gitUtils, owner, repo, prNumber, inlineReviewInstructions, reviewInstructionsFile, baseRef)
             : "";
-        const llm = new llm_client_1.LLMClient(baseUrl, apiKey, model, maxOutputTokens, llmTimeoutMs, undefined, llmTemperature, async (detail) => { /* progress */ }, undefined, customHeaders);
+        const llm = new llm_client_1.LLMClient(baseUrl, apiKey, model, maxOutputTokens, llmTimeoutMs, undefined, llmTemperature, async (detail) => {
             await updateStatusComment(octokit, owner, repo, statusCommentId, buildProgressStatusBody(detail, statusCommand, statusModel));
-        }, reasoningEffort);
+        }, undefined, customHeaders);
         const useJsonMode = command === "review" && jsonResponseMode;
         let reviewText;
         if (command === "summary") {
