@@ -916,6 +916,11 @@ class LLMClient {
                         ((status === 400 || status === 422) && mentionsReasoningObject))) {
                     throw error;
                 }
+                // Diagnosability: without this the real cause (e.g. a 403 free-tier
+                // rejection, a schema validation error) is replaced by a generic
+                // "no first response within Nms" stall message that names neither the
+                // status nor the provider's explanation.
+                core.warning(`Stream failed before the first chunk (status=${error?.status ?? "n/a"}): ${(0, llm_retry_1.errorMessage)(error)}`);
                 throw (0, llm_retry_1.openRouterStallError)(firstChunkMs);
             }
             throw error;
