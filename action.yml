@@ -80,6 +80,14 @@ inputs:
     description: "Optional JSON object with custom headers to send with LLM requests. Example: {\"x-opencode-session\": \"ses_xxx\"}"
     required: false
     default: ""
+  force-stream:
+    description: "Force SSE streaming even for non-router models. Required by some OpenAI-compatible free tiers that reject stream:false."
+    required: false
+    default: "false"
+  compat-tools:
+    description: "Inject 2 placeholder tool definitions with tool_choice=none. Works around free tiers that only admit requests carrying at least two tools. The tools are never invoked."
+    required: false
+    default: "false"
 
 runs:
   using: "node24"

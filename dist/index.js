@@ -63,6 +63,44 @@ exports.DEFAULT_LLM_ROUTER_COMPLETION_ATTEMPTS = 5;
 exports.DEFAULT_LLM_RETRY_DELAY_MS = 2000;
 exports.DEFAULT_LLM_ROUTER_RETRY_DELAY_MS = 3000;
 exports.DEFAULT_LLM_TEMPERATURE = 0.1; // near-deterministic reviews
+/**
+ * Placeholder tool definitions injected when the `compat-tools` input is enabled.
+ * Some OpenAI-compatible free tiers only admit requests carrying >= 2 tool
+ * definitions. These are never invoked — the request also sets
+ * `tool_choice: "none"` — they exist purely to pass that admission check.
+ *
+ * The schemas must declare at least one real property: a tool with
+ * `properties: {}` is rejected by the same admission check (verified against
+ * OpenCode Zen — empty-schema placeholders return 403, populated ones pass).
+ */
+const COMPAT_PLACEHOLDER_TOOLS = [
+    {
+        type: "function",
+        function: {
+            name: "compat_placeholder_read",
+            description: "Placeholder tool required by the provider's free-tier admission check. Never called.",
+            parameters: {
+                type: "object",
+                properties: { path: { type: "string", description: "Unused placeholder argument." } },
+                required: ["path"],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "compat_placeholder_grep",
+            description: "Placeholder tool required by the provider's free-tier admission check. Never called.",
+            parameters: {
+                type: "object",
+                properties: { pattern: { type: "string", description: "Unused placeholder argument." } },
+                required: ["pattern"],
+                additionalProperties: false,
+            },
+        },
+    },
+];
 /** OpenAI-compatible upper bound; some models (e.g. Kimi) only accept 1. */
 exports.MAX_LLM_TEMPERATURE = 2;
 function parseLLMTimeout(input) {
@@ -685,10 +723,13 @@ class LLMClient {
     reasoningEffort;
     reasoningFallbackActive = false;
     reasoningFallbackReason;
-    constructor(baseUrl, apiKey, model, maxOutputTokens, timeoutMs = config_1.DEFAULT_LLM_TIMEOUT_MS, maxAttempts = config_1.DEFAULT_LLM_COMPLETION_ATTEMPTS, temperature = config_1.DEFAULT_LLM_TEMPERATURE, onProgress, reasoningEffort, customHeaders) {
+    constructor(baseUrl, apiKey, model, maxOutputTokens, timeoutMs = config_1.DEFAULT_LLM_TIMEOUT_MS, maxAttempts = config_1.DEFAULT_LLM_COMPLETION_ATTEMPTS, temperature = config_1.DEFAULT_LLM_TEMPERATURE, onProgress, reasoningEffort, customHeaders, forceStream = false, compatTools = false) {
         this.model = model;
         this.temperature = temperature;
         this.routerModel = (0, llm_retry_1.isOpenRouterRouterModel)(model);
+        this.onProgress = onProgress;
+        this.forceStream = forceStream;
+        this.compatTools = compatTools;
         this.onProgress = onProgress;
         this.reasoningEffort = reasoningEffort?.trim() || undefined;
         this.maxOutputTokens =
@@ -708,6 +749,12 @@ class LLMClient {
         });
         if (this.routerModel) {
             core.info(`OpenRouter router model — ${config_1.DEFAULT_LLM_ROUTER_FIRST_CHUNK_MS / 1000}s first-chunk stall detect, ${effectiveTimeoutMs / 1000}s stream cap, provider fallbacks.`);
+        }
+        if (this.forceStream) {
+            core.info("force-stream enabled — using SSE streaming for a non-router model.");
+        }
+        if (this.compatTools) {
+            core.info("compat-tools enabled — injecting 2 placeholder tools with tool_choice=none to satisfy provider admission checks.");
         }
     }
     retryContext() {
@@ -797,7 +844,7 @@ class LLMClient {
         }
     }
     async dispatch(request) {
-        return this.routerModel
+        return this.routerModel || this.forceStream
             ? await this.streamChatCompletion(request)
             : await this.blockingChatCompletion(request);
     }
@@ -898,6 +945,14 @@ class LLMClient {
         if (this.routerModel) {
             // OpenRouter extension: try other providers when the first free route 404s.
             request.provider = { allow_fallbacks: true };
+        }
+        if (this.compatTools) {
+            // Some OpenAI-compatible endpoints only serve their free tier when the request
+            // carries at least two tool definitions (verified against OpenCode Zen: 0 or 1
+            // tools → 403, 2+ → OK). The tools are never meant to be called — `tool_choice:
+            // "none"` forbids it — they only satisfy the endpoint's admission check.
+            request.tools = COMPAT_PLACEHOLDER_TOOLS;
+            request.tool_choice = "none";
         }
         return request;
     }
@@ -1280,6 +1335,8 @@ async function run() {
             }
         }
         const failOnHigh = core.getInput("fail-on-high") === "true";
+        const forceStream = core.getInput("force-stream") === "true";
+        const compatTools = core.getInput("compat-tools") === "true";
         const maxDiffSizeInput = core.getInput("max-diff-size") || "50000";
         const maxCommentsInput = core.getInput("max-comments") || "25";
         const maxOutputTokensInput = core.getInput("max-output-tokens") || "";
@@ -1372,7 +1429,7 @@ async function run() {
             : "";
         const llm = new llm_client_1.LLMClient(baseUrl, apiKey, model, maxOutputTokens, llmTimeoutMs, undefined, llmTemperature, async (detail) => {
             await updateStatusComment(octokit, owner, repo, statusCommentId, buildProgressStatusBody(detail, statusCommand, statusModel));
-        }, undefined, customHeaders);
+        }, undefined, customHeaders, forceStream, compatTools);
         const useJsonMode = command === "review" && jsonResponseMode;
         let reviewText;
         if (command === "summary") {
